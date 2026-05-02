@@ -1,0 +1,136 @@
+// ─── Kuxtal Prisma Schema ───────────────────────────────────
+// Supports SQLite (local dev) and PostgreSQL (production).
+// Switch by changing DATABASE_URL in .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  username       String    @unique
+  email          String    @unique
+  hashedPassword String    @map("hashed_password")
+  isActive       Boolean   @default(true) @map("is_active")
+  role           String    @default("user") // 'user' | 'mod' | 'admin'
+  bio            String?
+  location       String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  posts        Post[]
+  comments     Comment[]
+  events       Event[]
+  sharedRules  SharedRule[]
+  upvotes      PostUpvote[]
+  rsvps        EventAttendee[]
+
+  @@map("users")
+}
+
+model Post {
+  id            Int       @id @default(autoincrement())
+  title         String
+  content       String
+  category      String    // "experiencias" | "saberes" | "preguntas" | etc.
+  authorId      Int       @map("author_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  upvotes       Int       @default(0)
+  // Optional source metadata when a post was shared from a local module
+  sourceType    String?   @map("source_type")    // 'rule' | 'saber' | null
+  sourcePayload String?   @map("source_payload") // JSON string of the original entity
+  // Moderation
+  status        String    @default("approved")    // 'pending' | 'approved' | 'rejected'
+  flagged       Boolean   @default(false)
+
+  author       User         @relation(fields: [authorId], references: [id])
+  comments     Comment[]
+  postUpvotes  PostUpvote[]
+
+  @@map("posts")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  postId    Int      @map("post_id")
+  authorId  Int      @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  location    String
+  eventDate   DateTime @map("event_date")
+  organizerId Int      @map("organizer_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  status      String   @default("pending")  // 'pending' | 'approved' | 'rejected'
+
+  organizer User             @relation(fields: [organizerId], references: [id])
+  attendees EventAttendee[]
+
+  @@map("events")
+}
+
+model Consultant {
+  id           Int      @id @default(autoincrement())
+  name         String
+  specialty    String
+  description  String
+  contact      String
+  endorsements Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("consultants")
+}
+
+model SharedRule {
+  id               Int      @id @default(autoincrement())
+  entityA          String   @map("entity_a")
+  entityB          String   @map("entity_b")
+  relationshipType String   @map("relationship_type")
+  message          String
+  authorId         Int      @map("author_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@map("shared_rules")
+}
+
+model PostUpvote {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("post_upvotes")
+}
+
+model EventAttendee {
+  id        Int      @id @default(autoincrement())
+  eventId   Int      @map("event_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("event_attendees")
+}

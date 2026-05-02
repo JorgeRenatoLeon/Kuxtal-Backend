@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.db
+*.db-journal
+
+# Env files — never commit filled-in secrets. Examples are tracked.
+.env
+.env.*
+!.env.example
+!.env.production.example

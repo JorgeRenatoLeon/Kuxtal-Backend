@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Kuxtal</title>
+    <style>
+        :root {
+          --ink: #2a2218;
+          --paper: #f7f3eb;
+          --paper-2: #ece5d4;
+          --ocre: #b5723f;
+          --ocre-deep: #8c5527;
+          --jade: #5a8a6f;
+          --cinabrio: #b34d39;
+          --line: rgba(0,0,0,0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+          font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+          background: var(--paper);
+          color: var(--ink);
+          margin: 0;
+          padding: 0;
+          min-height: 100vh;
+        }
+        header.topbar {
+          background: var(--ink);
+          color: var(--paper);
+          padding: 14px 24px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex-wrap: wrap;
+          position: sticky;
+          top: 0;
+          z-index: 50;
+        }
+        header.topbar h1 {
+          margin: 0; font-size: 18px; font-weight: 600;
+          letter-spacing: 0.04em;
+        }
+        header.topbar .role-badge {
+          padding: 3px 10px;
+          background: var(--ocre);
+          border-radius: 999px;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        header.topbar .who { margin-left: auto; opacity: 0.85; font-size: 13px; }
+        header.topbar button.logout {
+          background: transparent; color: var(--paper);
+          border: 1px solid var(--paper);
+          padding: 6px 12px; border-radius: 4px; cursor: pointer;
+          font-size: 12px;
+        }
+        nav.tabs {
+          display: flex; flex-wrap: wrap; gap: 6px;
+          padding: 12px 24px; background: var(--paper-2);
+          border-bottom: 1px solid var(--line);
+          position: sticky; top: 56px; z-index: 40;
+        }
+        nav.tabs button {
+          padding: 8px 14px;
+          border: 1px solid var(--line);
+          background: var(--paper);
+          color: var(--ink);
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 13px;
+        }
+        nav.tabs button:hover { background: var(--paper-2); }
+        nav.tabs button.active {
+          background: var(--ocre); color: var(--paper); border-color: var(--ocre-deep);
+        }
+        nav.tabs .badge {
+          margin-left: 6px;
+          background: var(--cinabrio); color: var(--paper);
+          padding: 1px 7px; border-radius: 999px;
+          font-size: 11px; font-weight: 600;
+        }
+        main { padding: 18px 24px 60px; max-width: 1200px; margin: 0 auto; }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+          gap: 12px;
+          margin-bottom: 18px;
+        }
+        .stat-card {
+          background: var(--paper); border: 1px solid var(--line);
+          border-radius: 6px; padding: 14px 16px;
+        }
+        .stat-card .num { font-size: 26px; font-weight: 600; }
+        .stat-card .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.55); }
+        .stat-card.alert { border-color: var(--cinabrio); background: #fff4f0; }
+
+        table {
+          width: 100%; border-collapse: collapse;
+          background: var(--paper); border: 1px solid var(--line);
+          border-radius: 6px; overflow: hidden;
+        }
+        th, td {
+          text-align: left; padding: 10px 12px;
+          border-bottom: 1px solid var(--line);
+          font-size: 13px;
+          vertical-align: top;
+        }
+        th { background: var(--paper-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+        tr:last-child td { border-bottom: none; }
+
+        button.btn {
+          padding: 5px 10px; border-radius: 3px;
+          border: 1px solid var(--line); background: var(--paper);
+          cursor: pointer; font-size: 12px; margin-right: 4px;
+        }
+        button.btn:hover { background: var(--paper-2); }
+        button.btn-primary { background: var(--jade); color: var(--paper); border-color: var(--jade); }
+        button.btn-primary:hover { filter: brightness(0.92); }
+        button.btn-danger  { background: var(--cinabrio); color: var(--paper); border-color: var(--cinabrio); }
+        button.btn-danger:hover { filter: brightness(0.92); }
+        button.btn-warn    { background: var(--ocre); color: var(--paper); border-color: var(--ocre-deep); }
+
+        .login-overlay {
+          position: fixed; inset: 0;
+          background: var(--paper);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 100;
+        }
+        .login-box {
+          width: 360px; max-width: 92vw;
+          padding: 28px;
+          background: var(--paper);
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+        }
+        .login-box h2 { margin: 0 0 16px; }
+        .login-box input {
+          width: 100%; padding: 10px 12px; margin-bottom: 10px;
+          border: 1px solid var(--line); border-radius: 4px;
+          font-size: 14px; box-sizing: border-box;
+        }
+        .login-box button {
+          width: 100%; padding: 11px; background: var(--ink); color: var(--paper);
+          border: none; border-radius: 4px; cursor: pointer; font-size: 14px;
+        }
+        .login-box .err { color: var(--cinabrio); font-size: 13px; margin-top: 8px; }
+
+        .empty { padding: 24px; text-align: center; color: rgba(0,0,0,0.5); }
+        .login-hint { margin: -8px 0 16px; color: rgba(0,0,0,0.55); font-size: 13px; }
+        .sr-only {
+          position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+          overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+        .panel-h2 { margin: 0 0 14px; font-size: 20px; }
+        .panel-meta { color: rgba(0,0,0,0.55); font-size: 13px; }
+        .cell-title { color: rgba(0,0,0,0.55); font-size: 12px; }
+        .cell-meta { color: rgba(0,0,0,0.55); font-size: 11px; }
+        .pill {
+          display: inline-block; padding: 2px 8px; border-radius: 999px;
+          font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .pill-pending  { background: #fef3c7; color: #92400e; }
+        .pill-approved { background: #dcfce7; color: #166534; }
+        .pill-rejected { background: #fee2e2; color: #991b1b; }
+        .pill-flagged  { background: #fee2e2; color: #991b1b; }
+        .pill-role-admin { background: var(--ink); color: var(--paper); }
+        .pill-role-mod   { background: var(--ocre); color: var(--paper); }
+        .pill-role-user  { background: var(--paper-2); color: var(--ink); border: 1px solid var(--line); }
+
+        @media (max-width: 720px) {
+          header.topbar { padding: 10px 14px; }
+          nav.tabs { padding: 8px 12px; top: 50px; }
+          main { padding: 14px 12px 60px; }
+          th, td { padding: 8px 8px; font-size: 12px; }
+          .stat-card .num { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="login" class="login-overlay">
+    <form class="login-box" onsubmit="event.preventDefault(); login();">
+        <h2>Kuxtal — Panel</h2>
+        <p class="login-hint">Acceso solo para moderadores y administradores.</p>
+        <label for="user" class="sr-only">Usuario</label>
+        <input id="user" type="text" placeholder="Usuario" autocomplete="username" required>
+        <label for="pass" class="sr-only">Contraseña</label>
+        <input id="pass" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+        <button type="submit">Entrar</button>
+        <div id="error" class="err" style="display:none;">Credenciales o privilegios insuficientes.</div>
+    </form>
+</div>
+
+<header class="topbar" id="topbar" hidden>
+    <h1>Kuxtal · Panel de moderación</h1>
+    <span class="role-badge" id="role-badge">user</span>
+    <span class="who" id="who"></span>
+    <button class="logout" onclick="logout()">Cerrar sesión</button>
+</header>
+
+<nav class="tabs" id="tabs" hidden aria-label="Secciones del panel">
+    <button type="button" data-tab="dashboard" class="active" onclick="loadTab('dashboard')">Resumen</button>
+    <button type="button" data-tab="events" onclick="loadTab('events')">Eventos <span id="badge-events" class="badge" hidden>0</span></button>
+    <button type="button" data-tab="posts" onclick="loadTab('posts')">Publicaciones <span id="badge-posts" class="badge" hidden>0</span></button>
+    <button type="button" data-tab="comments" onclick="loadTab('comments')">Comentarios</button>
+    <button type="button" data-tab="users" onclick="loadTab('users')">Usuarios</button>
+    <button type="button" data-tab="consultants" onclick="loadTab('consultants')">Consultores</button>
+</nav>
+
+<main id="content"></main>
+
+<script>
+let token = localStorage.getItem('admin_token');
+let me = null;
+
+const $ = (id) => document.getElementById(id);
+
+function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(path, { ...options, headers }).then(async (r) => {
+        if (r.status === 401 || r.status === 403) {
+            logout();
+            throw new Error('Auth required');
+        }
+        if (!r.ok) {
+            const e = await r.json().catch(() => ({}));
+            throw new Error(e.detail || ('HTTP ' + r.status));
+        }
+        const ct = r.headers.get('Content-Type') || '';
+        return ct.includes('application/json') ? r.json() : r.text();
+    });
+}
+
+async function login() {
+    $('error').style.display = 'none';
+    const u = $('user').value.trim();
+    const p = $('pass').value;
+    try {
+        const params = new URLSearchParams({ username: u, password: p });
+        const res = await fetch('/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString(),
+        });
+        if (!res.ok) throw new Error('Bad credentials');
+        const data = await res.json();
+        token = data.access_token;
+        localStorage.setItem('admin_token', token);
+        await bootstrap();
+    } catch (e) {
+        $('error').textContent = (e && e.message) || 'Error';
+        $('error').style.display = 'block';
+    }
+}
+
+function logout() {
+    localStorage.removeItem('admin_token');
+    token = null;
+    me = null;
+    $('login').style.display = 'flex';
+    $('topbar').hidden = true;
+    $('tabs').hidden = true;
+    $('content').innerHTML = '';
+}
+
+async function bootstrap() {
+    try {
+        me = await api('/users/me/');
+    } catch {
+        return logout();
+    }
+    if (!['admin', 'mod'].includes(me.role)) {
+        $('error').textContent = 'Tu cuenta no tiene privilegios.';
+        $('error').style.display = 'block';
+        return logout();
+    }
+    $('login').style.display = 'none';
+    $('topbar').hidden = false;
+    $('tabs').hidden = false;
+    $('role-badge').textContent = me.role;
+    $('who').textContent = '@' + me.username;
+    loadTab('dashboard');
+}
+
+function activeTab(name) {
+    document.querySelectorAll('nav.tabs button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === name);
+    });
+}
+
+async function loadTab(name) {
+    activeTab(name);
+    const root = $('content');
+    root.innerHTML = '<div class="empty">Cargando…</div>';
+    try {
+        if (name === 'dashboard') return renderDashboard(root);
+        if (name === 'events') return renderEvents(root);
+        if (name === 'posts') return renderPosts(root);
+        if (name === 'comments') return renderComments(root);
+        if (name === 'users') return renderUsers(root);
+        if (name === 'consultants') return renderConsultants(root);
+    } catch (e) {
+        root.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
+    }
+}
+
+function escapeHtml(s) {
+    return String(s ?? '').replaceAll(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+async function renderDashboard(root) {
+    const stats = await api('/admin/api/stats');
+    if (stats.pendingEvents > 0) {
+        $('badge-events').hidden = false; $('badge-events').textContent = stats.pendingEvents;
+    } else { $('badge-events').hidden = true; }
+    if (stats.flaggedPosts > 0) {
+        $('badge-posts').hidden = false; $('badge-posts').textContent = stats.flaggedPosts;
+    } else { $('badge-posts').hidden = true; }
+
+    root.innerHTML = `
+      <h2 style="margin:0 0 14px; font-size:20px;">Resumen</h2>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="num">${stats.users}</div><div class="lbl">Usuarios</div></div>
+        <div class="stat-card"><div class="num">${stats.posts}</div><div class="lbl">Publicaciones</div></div>
+        <div class="stat-card"><div class="num">${stats.comments}</div><div class="lbl">Comentarios</div></div>
+        <div class="stat-card"><div class="num">${stats.events}</div><div class="lbl">Eventos</div></div>
+        <div class="stat-card"><div class="num">${stats.consultants}</div><div class="lbl">Consultores</div></div>
+        <div class="stat-card${stats.pendingEvents ? ' alert' : ''}"><div class="num">${stats.pendingEvents}</div><div class="lbl">Eventos en revisión</div></div>
+        <div class="stat-card${stats.flaggedPosts ? ' alert' : ''}"><div class="num">${stats.flaggedPosts}</div><div class="lbl">Publicaciones reportadas</div></div>
+      </div>
+      <p class="panel-meta">Selecciona una pestaña para gestionar contenido.</p>
+    `;
+}
+
+async function renderEvents(root) {
+    const events = await api('/admin/api/events');
+    if (!events.length) {
+        root.innerHTML = '<div class="empty">No hay eventos.</div>'; return;
+    }
+    const rows = events.map(e => `
+      <tr>
+        <td>${e.id}</td>
+        <td><strong>${escapeHtml(e.title)}</strong><div class="cell-title">${escapeHtml((e.description||'').slice(0,140))}</div></td>
+        <td>${escapeHtml(e.location)}<div class="cell-meta">${new Date(e.event_date).toLocaleString()}</div></td>
+        <td>@${escapeHtml(e.organizer_username)}</td>
+        <td><span class="pill pill-${e.status}">${e.status}</span></td>
+        <td>${e.attendee_count}</td>
+        <td>
+          ${e.status === 'approved' ? '' : `<button type="button" class="btn btn-primary" onclick="setEventStatus(${e.id}, 'approved')">Aprobar</button>`}
+          ${e.status === 'rejected' ? '' : `<button type="button" class="btn btn-warn" onclick="setEventStatus(${e.id}, 'rejected')">Rechazar</button>`}
+          <button type="button" class="btn btn-danger" onclick="deleteEvent(${e.id})">Eliminar</button>
+        </td>
+      </tr>`).join('');
+    root.innerHTML = `
+      <h2 class="panel-h2">Eventos</h2>
+      <table><thead><tr>
+        <th>ID</th><th>Título</th><th>Ubicación / fecha</th><th>Organizador</th><th>Estado</th><th>Asist.</th><th>Acciones</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function setEventStatus(id, status) {
+    await api('/admin/api/events/' + id, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+    loadTab('events');
+}
+
+async function deleteEvent(id) {
+    if (!confirm('¿Eliminar este evento?')) return;
+    await api('/events/' + id, { method: 'DELETE' });
+    loadTab('events');
+}
+
+async function renderPosts(root) {
+    const posts = await api('/admin/api/posts');
+    if (!posts.length) { root.innerHTML = '<div class="empty">No hay publicaciones.</div>'; return; }
+    const rows = posts.map(p => `
+      <tr>
+        <td>${p.id}</td>
+        <td><strong>${escapeHtml(p.title)}</strong>
+          <div class="cell-title">${escapeHtml((p.content||'').slice(0,160))}</div>
+        </td>
+        <td>${escapeHtml(p.category)}${p.source_type ? ' <span class="pill pill-role-mod">'+p.source_type+'</span>' : ''}</td>
+        <td>@${escapeHtml(p.author_username)}</td>
+        <td>${p.upvotes}</td>
+        <td>${p.flagged ? '<span class="pill pill-flagged">reportado</span>' : ''}</td>
+        <td>
+          <button type="button" class="btn btn-warn" onclick="togglePostFlag(${p.id}, ${!p.flagged})">${p.flagged ? 'Quitar bandera' : 'Marcar'}</button>
+          <button type="button" class="btn btn-danger" onclick="deletePost(${p.id})">Eliminar</button>
+        </td>
+      </tr>`).join('');
+    root.innerHTML = `
+      <h2 class="panel-h2">Publicaciones</h2>
+      <table><thead><tr>
+        <th>ID</th><th>Contenido</th><th>Categoría</th><th>Autor</th><th>Votos</th><th></th><th>Acciones</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function togglePostFlag(id, flagged) {
+    await api('/admin/api/posts/' + id, { method: 'PATCH', body: JSON.stringify({ flagged }) });
+    loadTab('posts');
+}
+
+async function deletePost(id) {
+    if (!confirm('¿Eliminar esta publicación?')) return;
+    await api('/posts/' + id, { method: 'DELETE' });
+    loadTab('posts');
+}
+
+async function renderComments(root) {
+    const comments = await api('/admin/api/comments');
+    if (!comments.length) { root.innerHTML = '<div class="empty">No hay comentarios.</div>'; return; }
+    const rows = comments.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${escapeHtml(c.content)}</td>
+        <td>#${c.post_id} ${escapeHtml((c.post_title||'').slice(0,40))}</td>
+        <td>@${escapeHtml(c.author_username)}</td>
+        <td>${new Date(c.created_at).toLocaleString()}</td>
+        <td><button type="button" class="btn btn-danger" onclick="deleteComment(${c.id})">Eliminar</button></td>
+      </tr>`).join('');
+    root.innerHTML = `
+      <h2 class="panel-h2">Comentarios</h2>
+      <table><thead><tr>
+        <th>ID</th><th>Contenido</th><th>Publicación</th><th>Autor</th><th>Creado</th><th>Acciones</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function deleteComment(id) {
+    if (!confirm('¿Eliminar este comentario?')) return;
+    await api('/comments/' + id, { method: 'DELETE' });
+    loadTab('comments');
+}
+
+async function renderUsers(root) {
+    const users = await api('/admin/api/users');
+    const isAdmin = me.role === 'admin';
+    const rows = users.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td>@${escapeHtml(u.username)}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td><span class="pill pill-role-${u.role}">${u.role}</span></td>
+        <td>${u.is_active ? 'activo' : 'desactivado'}</td>
+        <td>${new Date(u.created_at).toLocaleDateString()}</td>
+        <td>
+          <button type="button" class="btn" onclick="toggleUserActive(${u.id}, ${!u.is_active})">${u.is_active ? 'Desactivar' : 'Reactivar'}</button>
+          ${isAdmin ? `
+            <select onchange="setUserRole(${u.id}, this.value)" aria-label="Rol">
+              <option value="user" ${u.role==='user'?'selected':''}>user</option>
+              <option value="mod" ${u.role==='mod'?'selected':''}>mod</option>
+              <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+            </select>` : ''}
+        </td>
+      </tr>`).join('');
+    root.innerHTML = `
+      <h2 class="panel-h2">Usuarios</h2>
+      <table><thead><tr>
+        <th>ID</th><th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function toggleUserActive(id, active) {
+    await api('/admin/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ is_active: active }) });
+    loadTab('users');
+}
+
+async function setUserRole(id, role) {
+    await api('/admin/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ role }) });
+    loadTab('users');
+}
+
+async function renderConsultants(root) {
+    const list = await api('/admin/api/consultants');
+    if (!list.length) { root.innerHTML = '<div class="empty">No hay consultores.</div>'; return; }
+    const rows = list.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td><strong>${escapeHtml(c.name)}</strong></td>
+        <td>${escapeHtml(c.specialty)}</td>
+        <td>${escapeHtml(c.contact)}</td>
+        <td>${c.endorsements}</td>
+        <td><button type="button" class="btn btn-danger" onclick="deleteConsultant(${c.id})">Eliminar</button></td>
+      </tr>`).join('');
+    root.innerHTML = `
+      <h2 class="panel-h2">Consultores</h2>
+      <table><thead><tr>
+        <th>ID</th><th>Nombre</th><th>Especialidad</th><th>Contacto</th><th>Avales</th><th>Acciones</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function deleteConsultant(id) {
+    if (!confirm('¿Eliminar este consultor?')) return;
+    await api('/admin/api/consultants/' + id, { method: 'DELETE' });
+    loadTab('consultants');
+}
+
+if (token) {
+    bootstrap().catch(() => {});
+}
+</script>
+
+</body>
+</html>
