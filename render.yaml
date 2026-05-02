@@ -1,0 +1,41 @@
+# Render Blueprint for the Kuxtal backend.
+# This file lives at the backend-ts root.
+#
+# Steps:
+#   1. Push backend-ts/ to GitHub (either as its own repo, or as a
+#      subdirectory of a monorepo).
+#   2. In Render: "New" → "Blueprint" → pick the repo and branch.
+#      For a monorepo, set the service's "Root Directory" to backend-ts
+#      so this file resolves at the service root.
+#   3. Fill the secret env vars in the Render dashboard:
+#      DATABASE_URL, CORS_ORIGINS, optional ADMIN_*.
+#      JWT_SECRET is generated automatically.
+
+services:
+  - type: web
+    name: kuxtal-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npx tsc && mkdir -p dist/admin && cp src/admin/admin.html dist/admin/admin.html
+    startCommand: npx prisma db push --skip-generate && node dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Marked as secrets — set in the Render dashboard.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      # Optional bootstrap admin (defaults to admin/admin if unset).
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
