@@ -1,9 +1,15 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { hashPassword, verifyPassword, signToken, requireAuth, type AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+function asyncH(fn: (req: any, res: Response, next: NextFunction) => Promise<unknown>) {
+  return (req: any, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 // ─── Schemas ───────────────────────────────────────────────
 const LoginSchema = z.object({
@@ -26,7 +32,7 @@ const ProfileUpdateSchema = z.object({
 });
 
 // ─── POST /token ──────────────────────────────────
-router.post('/token', async (req: Request, res: Response) => {
+router.post('/token', asyncH(async (req: Request, res: Response) => {
   const parsed = LoginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ detail: 'Invalid request body', errors: parsed.error.flatten() });
@@ -48,10 +54,10 @@ router.post('/token', async (req: Request, res: Response) => {
 
   const token = signToken({ sub: user.username, userId: user.id });
   res.json({ access_token: token, token_type: 'bearer', role: user.role });
-});
+}));
 
 // ─── POST /users/ ───────────────────────────────
-router.post('/users/', async (req: Request, res: Response) => {
+router.post('/users/', asyncH(async (req: Request, res: Response) => {
   const parsed = RegisterSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ detail: 'Invalid request body', errors: parsed.error.flatten() });
@@ -81,17 +87,16 @@ router.post('/users/', async (req: Request, res: Response) => {
     role: user.role,
     created_at: user.createdAt,
   });
-});
+}));
 
 // ─── GET /users/me/ ──────────────────────────────────────
-router.get('/users/me/', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/users/me/', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
   if (!user) {
     res.status(404).json({ detail: 'User not found' });
     return;
   }
 
-  // Stats
   const [postCount, commentCount, eventCount, sharedRulesCount, attendeeCount] = await Promise.all([
     prisma.post.count({ where: { authorId: user.id } }),
     prisma.comment.count({ where: { authorId: user.id } }),
@@ -117,10 +122,10 @@ router.get('/users/me/', requireAuth, async (req: AuthRequest, res: Response) =>
       attending: attendeeCount,
     },
   });
-});
+}));
 
 // ─── PATCH /users/me/ — edit profile ─────────────
-router.patch('/users/me/', requireAuth, async (req: AuthRequest, res: Response) => {
+router.patch('/users/me/', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const parsed = ProfileUpdateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ detail: 'Invalid request body', errors: parsed.error.flatten() });
@@ -157,6 +162,6 @@ router.patch('/users/me/', requireAuth, async (req: AuthRequest, res: Response) 
     location: updated.location,
     role: updated.role,
   });
-});
+}));
 
 export default router;

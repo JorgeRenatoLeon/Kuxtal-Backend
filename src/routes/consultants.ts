@@ -1,9 +1,15 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+function asyncH(fn: (req: any, res: Response, next: NextFunction) => Promise<unknown>) {
+  return (req: any, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 const ConsultantCreateSchema = z.object({
   name: z.string().min(1).max(100),
@@ -12,14 +18,13 @@ const ConsultantCreateSchema = z.object({
   contact: z.string().min(1).max(200),
 });
 
-// ─── GET /api/consultants ──────────────────────────────────
-router.get('/', async (req: Request, res: Response) => {
+// ─── GET /consultants ──────────────────────────────
+router.get('/', asyncH(async (req: Request, res: Response) => {
   const skip = Number.parseInt(req.query.skip as string, 10) || 0;
   const limit = Math.min(Number.parseInt(req.query.limit as string, 10) || 100, 200);
 
   const consultants = await prisma.consultant.findMany({
-    skip,
-    take: limit,
+    skip, take: limit,
     orderBy: { endorsements: 'desc' },
   });
 
@@ -32,10 +37,10 @@ router.get('/', async (req: Request, res: Response) => {
     endorsements: c.endorsements,
     created_at: c.createdAt,
   })));
-});
+}));
 
-// ─── POST /api/consultants ─────────────────────────────────
-router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
+// ─── POST /consultants ─────────────────────────────
+router.post('/', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const parsed = ConsultantCreateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ detail: 'Invalid request body', errors: parsed.error.flatten() });
@@ -55,10 +60,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     endorsements: consultant.endorsements,
     created_at: consultant.createdAt,
   });
-});
+}));
 
-// ─── POST /api/consultants/:id/endorse ─────────────────────
-router.post('/:id/endorse', requireAuth, async (req: AuthRequest, res: Response) => {
+// ─── POST /consultants/:id/endorse ─────────────────
+router.post('/:id/endorse', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const id = Number.parseInt(req.params.id as string, 10);
   if (Number.isNaN(id)) { res.status(400).json({ detail: 'Invalid ID' }); return; }
 
@@ -70,6 +75,6 @@ router.post('/:id/endorse', requireAuth, async (req: AuthRequest, res: Response)
   if (!updated) { res.status(404).json({ detail: 'Consultant not found' }); return; }
 
   res.json({ success: true, endorsements: updated.endorsements });
-});
+}));
 
 export default router;

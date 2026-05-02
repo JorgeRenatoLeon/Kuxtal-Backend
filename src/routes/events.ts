@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { requireAuth, type AuthRequest, verifyToken } from '../middleware/auth';
@@ -12,6 +12,12 @@ const EventCreateSchema = z.object({
   event_date: z.string().datetime(),
 });
 
+function asyncH(fn: (req: any, res: Response, next: NextFunction) => Promise<unknown>) {
+  return (req: any, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
 function serialise(e: any, currentUserId?: number, attendeeCount = 0, attending = false) {
   return {
     id: e.id,
@@ -20,7 +26,7 @@ function serialise(e: any, currentUserId?: number, attendeeCount = 0, attending 
     location: e.location,
     event_date: e.eventDate,
     organizer_id: e.organizerId,
-    organizer_username: e.organizer?.username,
+    organizer_username: e.organizer?.username ?? `user-${e.organizerId}`,
     created_at: e.createdAt,
     status: e.status,
     attendee_count: attendeeCount,
@@ -32,7 +38,7 @@ function serialise(e: any, currentUserId?: number, attendeeCount = 0, attending 
 // ─── GET /events ───────────────────────────────────────
 // Public list: only approved events. ?mine=1 to include organizer's pending too.
 // ?status=pending|approved|rejected for moderators.
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', asyncH(async (req: Request, res: Response) => {
   const skip = Number.parseInt(req.query.skip as string, 10) || 0;
   const limit = Math.min(Number.parseInt(req.query.limit as string, 10) || 100, 200);
   const statusFilter = (req.query.status as string) || undefined;
@@ -59,9 +65,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 
   const events = await prisma.event.findMany({
-    where,
-    skip,
-    take: limit,
+    where, skip, take: limit,
     orderBy: { eventDate: 'asc' },
     include: {
       organizer: { select: { id: true, username: true } },
@@ -73,10 +77,10 @@ router.get('/', async (req: Request, res: Response) => {
     const attending = currentUserId ? e.attendees.some(a => a.userId === currentUserId) : false;
     return serialise(e, currentUserId, e.attendees.length, attending);
   }));
-});
+}));
 
 // ─── POST /events — creates pending; admins auto-approve ──
-router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const parsed = EventCreateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ detail: 'Invalid request body', errors: parsed.error.flatten() });
@@ -98,10 +102,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   });
 
   res.status(201).json(serialise(event, req.user!.id, 0, false));
-});
+}));
 
 // ─── DELETE /events/:id — organizer or mod ─────────────
-router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const id = Number.parseInt(req.params.id as string, 10);
   if (Number.isNaN(id)) { res.status(400).json({ detail: 'Invalid event ID' }); return; }
   const event = await prisma.event.findUnique({ where: { id } });
@@ -114,10 +118,10 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   }
   await prisma.event.delete({ where: { id } });
   res.json({ success: true });
-});
+}));
 
 // ─── POST /events/:id/rsvp — toggle ────────────────────
-router.post('/:id/rsvp', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/:id/rsvp', requireAuth, asyncH(async (req: AuthRequest, res: Response) => {
   const id = Number.parseInt(req.params.id as string, 10);
   if (Number.isNaN(id)) { res.status(400).json({ detail: 'Invalid event ID' }); return; }
   const event = await prisma.event.findUnique({ where: { id } });
@@ -139,6 +143,6 @@ router.post('/:id/rsvp', requireAuth, async (req: AuthRequest, res: Response) =>
   await prisma.eventAttendee.create({ data: { eventId: id, userId } });
   const count = await prisma.eventAttendee.count({ where: { eventId: id } });
   res.json({ success: true, attending: true, attendee_count: count });
-});
+}));
 
 export default router;
