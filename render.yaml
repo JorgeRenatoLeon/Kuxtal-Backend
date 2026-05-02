@@ -16,7 +16,9 @@ services:
     name: kuxtal-api
     runtime: node
     plan: free
-    buildCommand: npm ci && npx prisma generate && npx tsc && mkdir -p dist/admin && cp src/admin/admin.html dist/admin/admin.html
+    # --include=dev forces devDependencies (typescript, @types/*, prisma CLI)
+    # to install even with NODE_ENV=production, which Render sets by default.
+    buildCommand: npm ci --include=dev && npx prisma generate && npx tsc && mkdir -p dist/admin && cp src/admin/admin.html dist/admin/admin.html
     startCommand: npx prisma db push --skip-generate && node dist/index.js
     healthCheckPath: /health
     autoDeploy: true
