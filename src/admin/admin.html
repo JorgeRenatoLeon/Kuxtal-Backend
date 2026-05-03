@@ -155,6 +155,10 @@
           overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
         }
         .panel-h2 { margin: 0 0 14px; font-size: 20px; }
+        .form-block { background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+        .form-block .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 8px; }
+        .form-block input, .form-block textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit; font-size: 14px; }
+        .form-block textarea { resize: vertical; margin-bottom: 8px; }
         .panel-meta { color: rgba(0,0,0,0.55); font-size: 13px; }
         .cell-title { color: rgba(0,0,0,0.55); font-size: 12px; }
         .cell-meta { color: rgba(0,0,0,0.55); font-size: 11px; }
@@ -479,7 +483,6 @@ async function setUserRole(id, role) {
 
 async function renderConsultants(root) {
     const list = await api('/admin/api/consultants');
-    if (!list.length) { root.innerHTML = '<div class="empty">No hay consultores.</div>'; return; }
     const rows = list.map(c => `
       <tr>
         <td>${c.id}</td>
@@ -487,13 +490,69 @@ async function renderConsultants(root) {
         <td>${escapeHtml(c.specialty)}</td>
         <td>${escapeHtml(c.contact)}</td>
         <td>${c.endorsements}</td>
-        <td><button type="button" class="btn btn-danger" onclick="deleteConsultant(${c.id})">Eliminar</button></td>
+        <td>
+          <button type="button" class="btn" onclick="editConsultant(${c.id})">Editar</button>
+          <button type="button" class="btn btn-danger" onclick="deleteConsultant(${c.id})">Eliminar</button>
+        </td>
       </tr>`).join('');
     root.innerHTML = `
       <h2 class="panel-h2">Consultores</h2>
-      <table><thead><tr>
+      <div class="form-block" style="margin-bottom: 14px;">
+        <h3 style="margin: 0 0 8px;">Nuevo consultor</h3>
+        <div class="grid">
+          <input id="ck-name" placeholder="Nombre" />
+          <input id="ck-specialty" placeholder="Especialidad" />
+          <input id="ck-contact" placeholder="Contacto (correo o teléfono)" />
+        </div>
+        <textarea id="ck-description" rows="3" placeholder="Descripción"></textarea>
+        <button type="button" class="btn btn-primary" onclick="createConsultant()">Crear</button>
+        <span id="ck-msg" style="margin-left: 8px;"></span>
+      </div>
+      ${list.length ? `<table><thead><tr>
         <th>ID</th><th>Nombre</th><th>Especialidad</th><th>Contacto</th><th>Avales</th><th>Acciones</th>
-      </tr></thead><tbody>${rows}</tbody></table>`;
+      </tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No hay consultores.</div>'}`;
+}
+
+async function createConsultant() {
+    const name = document.getElementById('ck-name').value.trim();
+    const specialty = document.getElementById('ck-specialty').value.trim();
+    const contact = document.getElementById('ck-contact').value.trim();
+    const description = document.getElementById('ck-description').value.trim();
+    const msg = document.getElementById('ck-msg');
+    if (!name || !specialty || !contact || !description) {
+        msg.textContent = 'Todos los campos son obligatorios.';
+        msg.style.color = '#c44';
+        return;
+    }
+    try {
+        await api('/admin/api/consultants', {
+            method: 'POST',
+            body: JSON.stringify({ name, specialty, contact, description })
+        });
+        loadTab('consultants');
+    } catch (e) {
+        msg.textContent = 'Error: ' + (e.message || e);
+        msg.style.color = '#c44';
+    }
+}
+
+async function editConsultant(id) {
+    const list = await api('/admin/api/consultants');
+    const c = list.find(x => x.id === id);
+    if (!c) return;
+    const name = prompt('Nombre:', c.name); if (name === null) return;
+    const specialty = prompt('Especialidad:', c.specialty); if (specialty === null) return;
+    const contact = prompt('Contacto:', c.contact); if (contact === null) return;
+    const description = prompt('Descripción:', c.description); if (description === null) return;
+    try {
+        await api('/admin/api/consultants/' + id, {
+            method: 'PATCH',
+            body: JSON.stringify({ name, specialty, contact, description })
+        });
+        loadTab('consultants');
+    } catch (e) {
+        alert('Error: ' + (e.message || e));
+    }
 }
 
 async function deleteConsultant(id) {

@@ -28,8 +28,58 @@ model User {
   sharedRules  SharedRule[]
   upvotes      PostUpvote[]
   rsvps        EventAttendee[]
+  projects          Project[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  name        String   @default("Mi finca")
+  data        String   // JSON dump of all local SQLite tables
+  isPublic    Boolean  @default(false) @map("is_public")
+  publicSlug  String?  @unique @map("public_slug")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  type      String   // 'event_status' | 'comment' | 'reply' | 'rsvp' | 'system'
+  title     String
+  body      String?
+  link      String?  // optional path or URL fragment to deep-link
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Post {

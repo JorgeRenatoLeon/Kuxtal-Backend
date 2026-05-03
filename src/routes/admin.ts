@@ -2,6 +2,8 @@ import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { requireRole, type AuthRequest, hashPassword } from '../middleware/auth';
+import { notify } from './notifications';
+import { sendPushToUser } from './push';
 
 const router = Router();
 
@@ -157,9 +159,19 @@ router.patch('/events/:id', asyncH(async (req: AuthRequest, res: Response) => {
   if (Number.isNaN(id)) { res.status(400).json({ detail: 'Invalid event ID' }); return; }
   const parsed = EventPatchSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ detail: 'Invalid body' }); return; }
+  const prev = await prisma.event.findUnique({ where: { id } });
   const updated = await prisma.event.update({
     where: { id }, data: { status: parsed.data.status },
   });
+  if (prev && prev.status !== parsed.data.status && prev.status === 'pending') {
+    const approved = parsed.data.status === 'approved';
+    const title = approved ? 'Evento aprobado' : 'Evento rechazado';
+    const body = approved
+      ? `Tu evento "${updated.title}" fue aprobado y ya está visible.`
+      : `Tu evento "${updated.title}" fue rechazado.`;
+    notify(updated.organizerId, 'event_status', title, body, `/events`).catch(() => null);
+    sendPushToUser(updated.organizerId, title, body).catch(() => null);
+  }
   res.json({ id: updated.id, status: updated.status });
 }));
 
@@ -200,6 +212,47 @@ router.delete('/consultants/:id', asyncH(async (req: AuthRequest, res: Response)
   if (Number.isNaN(id)) { res.status(400).json({ detail: 'Invalid consultant ID' }); return; }
   await prisma.consultant.delete({ where: { id } }).catch(() => null);
   res.json({ success: true });
+}));
+
+// ─── POST /admin/consultants ─── create new consultant
+const ConsultantCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  specialty: z.string().min(1).max(100),
+  description: z.string().min(1),
+  contact: z.string().min(1).max(200),
+});
+router.post('/consultants', asyncH(async (req: AuthRequest, res: Response) => {
+  const parsed = ConsultantCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ detail: 'Invalid body', errors: parsed.error.flatten() });
+    return;
+  }
+  const c = await prisma.consultant.create({ data: parsed.data });
+  res.status(201).json({
+    id: c.id, name: c.name, specialty: c.specialty,
+    description: c.description, contact: c.contact,
+    endorsements: c.endorsements, created_at: c.createdAt,
+  });
+}));
+
+// ─── PATCH /admin/consultants/:id ─── edit consultant
+const ConsultantPatchSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  specialty: z.string().min(1).max(100).optional(),
+  description: z.string().min(1).optional(),
+  contact: z.string().min(1).max(200).optional(),
+});
+router.patch('/consultants/:id', asyncH(async (req: AuthRequest, res: Response) => {
+  const id = Number.parseInt(req.params.id as string, 10);
+  if (Number.isNaN(id)) { res.status(400).json({ detail: 'Invalid consultant ID' }); return; }
+  const parsed = ConsultantPatchSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ detail: 'Invalid body' }); return; }
+  const c = await prisma.consultant.update({ where: { id }, data: parsed.data });
+  res.json({
+    id: c.id, name: c.name, specialty: c.specialty,
+    description: c.description, contact: c.contact,
+    endorsements: c.endorsements, created_at: c.createdAt,
+  });
 }));
 
 export default router;

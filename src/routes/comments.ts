@@ -2,6 +2,8 @@ import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
+import { notify } from './notifications';
+import { sendPushToUser } from './push';
 
 const router = Router();
 
@@ -44,6 +46,14 @@ router.post('/', requireAuth, asyncH(async (req: AuthRequest, res: Response) => 
     author_username: comment.author?.username ?? `user-${comment.authorId}`,
     created_at: comment.createdAt,
   });
+
+  if (post.authorId !== req.user!.id) {
+    const commenter = comment.author?.username ?? `user-${comment.authorId}`;
+    const title = 'Nuevo comentario en tu publicación';
+    const body = `${commenter} comentó en "${post.title}"`;
+    notify(post.authorId, 'comment', title, body, `/posts/${post.id}`).catch(() => null);
+    sendPushToUser(post.authorId, title, body).catch(() => null);
+  }
 }));
 
 // ─── DELETE /comments/:id — author or mod ────────────

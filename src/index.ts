@@ -12,6 +12,9 @@ import commentsRouter from './routes/comments';
 import eventsRouter from './routes/events';
 import consultantsRouter from './routes/consultants';
 import adminRouter from './routes/admin';
+import projectsRouter from './routes/projects';
+import notificationsRouter from './routes/notifications';
+import pushRouter from './routes/push';
 
 const app = express();
 
@@ -72,6 +75,9 @@ app.use('/comments', commentsRouter);
 app.use('/events', eventsRouter);
 app.use('/consultants', consultantsRouter);
 app.use('/admin/api', adminRouter);
+app.use('/projects', projectsRouter);
+app.use('/notifications', notificationsRouter);
+app.use('/push', pushRouter);
 
 // ─── 404 handler ───────────────────────────────────────────────
 app.use((req, res) => {
