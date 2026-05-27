@@ -15,6 +15,8 @@ import adminRouter from './routes/admin';
 import projectsRouter from './routes/projects';
 import notificationsRouter from './routes/notifications';
 import pushRouter from './routes/push';
+import plantsRouter from './routes/plants';
+import sharedRulesRouter from './routes/sharedRules';
 
 const app = express();
 
@@ -78,6 +80,8 @@ app.use('/admin/api', adminRouter);
 app.use('/projects', projectsRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/push', pushRouter);
+app.use('/plants', plantsRouter);
+app.use('/shared-rules', sharedRulesRouter);
 
 // ─── 404 handler ───────────────────────────────────────────────
 app.use((req, res) => {

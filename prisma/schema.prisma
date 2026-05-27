@@ -159,6 +159,28 @@ model SharedRule {
   @@map("shared_rules")
 }
 
+// ─── Recommendation engine plant catalog (optional online refresh) ──
+// The UI ships a bundled dataset and works fully offline; these tables let an
+// admin publish dataset updates that clients pick up via /plants/version.
+model Plant {
+  id             String   @id
+  scientificName String   @map("scientific_name")
+  data           Json
+  schemaVersion  Int      @map("schema_version")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([schemaVersion])
+  @@map("plants")
+}
+
+model PlantCatalogMeta {
+  id          Int      @id @default(autoincrement())
+  version     Int
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  @@map("plant_catalog_meta")
+}
+
 model PostUpvote {
   id        Int      @id @default(autoincrement())
   postId    Int      @map("post_id")
